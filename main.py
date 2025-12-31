@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 import os
 import re
+import sys
 
 words = ["PRINT","INT","STR","LIST","LET","PRINTVAR","CLEAR","INPUT","END","LINES","TYPE","COMMAND","OPEN","READ","WRITE","CLOSE","ADD","SUB","DIV","MULT","JUMP","JUMPIF"]
 
 
-filename = "test.bas"
+filename = sys.argv[1]
+
 class Compiler:
     def __init__(self, code:list):
         self.lines_code = code
@@ -71,7 +73,7 @@ class Compiler:
                 # Генерируем команды цикла
                 processed_lines.extend([
                     f"# Начало цикла FOR<<{iterations}",
-                    f"INT counter 0",
+                    f"INT i 0",
                     f"INT max {iterations}",
                     f"# Метка начала цикла",
                     f"#FOR-START",
@@ -82,8 +84,8 @@ class Compiler:
 
                 # Инкремент и прыжок назад
                 processed_lines.extend([
-                    f"ADD counter 1",
-                    f"JUMP_IF not @counter == @max >{loop_start}",
+                    f"ADD i 1",
+                    f"JUMP_IF not @i == @max >{loop_start}",
                     f"# Конец цикла FOR"
                 ])
 
@@ -257,8 +259,6 @@ class basic:
                 self.init_list(args[0],data)
             elif typee == None:
                 self.variables[args[0]] = None
-        elif word == "PRINTVAR":
-            print(self.variables[args[0]])
         elif word == "CLEAR":
             os.system("clear")
         elif word == "INPUT":
@@ -307,7 +307,5 @@ class basic:
 
 
 lang = basic(filename)
-
-
 
 
