@@ -9,101 +9,186 @@ words = ["PRINT","INT","STR","LIST","LET","PRINTVAR","CLEAR","INPUT","END","LINE
 
 filename = sys.argv[1]
 
+
+
 class Compiler:
     def __init__(self, code:list):
         self.lines_code = code
+        self.functions = {}
+        self.compiled_code = []
+    
     def compile(self):
         """Преобразует высокоуровневые конструкции в команды JUMP"""
-        processed_lines = []
-        i = 0
-
         # Очистка кода от пустых строк и комментариев
         clean_lines = []
         for line in self.lines_code:
             clean_line = line.strip()
             if clean_line and not clean_line.startswith("#") and not clean_line.isspace():
                 clean_lines.append(clean_line)
-
+        
+        print(f"Очищенные строки: {clean_lines}")
+        
+        # Этап 1: Обработка IF
+        processed_lines = self._process_if(clean_lines)
+        print(f"После IF: {processed_lines}")
+        
+        # Этап 2: Обработка FOR
+        processed_lines_for = self._process_for(processed_lines)
+        print(f"После FOR: {processed_lines_for}")
+        
+        # Этап 3: Обработка DEF
+        processed_lines_def, functions = self._process_def(processed_lines_for)
+        print(f"После DEF: {processed_lines_def}")
+        
+        # Этап 4: Обработка CALL
+        processed_lines_call = self._process_call(processed_lines_def, functions)
+        print(f"После CALL: {processed_lines_call}")
+        
+        self.compiled_code = processed_lines_call
+        return self.compiled_code
+    
+    def _process_if(self, lines):
+        """Обработка IF конструкций"""
+        processed_lines = []
         i = 0
-        while i < len(clean_lines):
-            line = clean_lines[i]
-
-            # Проверяем IF условие (без THEN)
+        
+        while i < len(lines):
+            line = lines[i]
             if line.startswith("IF<<"):
                 # Извлекаем условие после IF
-                condition = line[4:].strip()  # Убираем "IF "
-
+                condition = line[4:].strip()
+                
                 # Извлекаем блок действий до ENDIF
                 action_block = []
                 i += 1
-                while i < len(clean_lines) and clean_lines[i] != "ENDIF":
-                    action_block.append(clean_lines[i])
+                while i < len(lines) and lines[i] != "ENDIF":
+                    action_block.append(lines[i])
                     i += 1
-
+                
                 # Вычисляем позицию конца IF
                 end_position = len(processed_lines) + len(action_block) + 1
-
+                
                 # Генерируем команды JUMP
                 processed_lines.append(f"JUMP_IF not {condition} >{end_position}")
                 processed_lines.extend(action_block)
                 processed_lines.append(f"# Конец IF")
-
+                
                 i += 1  # Пропускаем ENDIF
-
-            # Проверяем FOR<<итерации
-            elif line.startswith("FOR<<"):
+            else:
+                processed_lines.append(line)
+                i += 1
+        
+        return processed_lines
+    
+    def _process_for(self, lines):
+        """Обработка FOR конструкций"""
+        processed_lines = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            if line.startswith("FOR<<"):
                 # Извлекаем количество итераций
                 iterations_match = re.match(r'FOR<<(\d+)', line)
                 if iterations_match:
                     iterations = iterations_match.group(1)
                 else:
                     iterations = "0"
-
+                
                 # Извлекаем блок цикла до ENDFOR
                 loop_block = []
                 i += 1
-                while i < len(clean_lines) and clean_lines[i] != "ENDFOR":
-                    loop_block.append(clean_lines[i])
+                while i < len(lines) and lines[i] != "ENDFOR":
+                    loop_block.append(lines[i])
                     i += 1
-
+                
                 # Вычисляем позиции для прыжков
                 loop_start = len(processed_lines) + 4
                 loop_end = len(processed_lines) + len(loop_block) + 5
-
+                
                 # Генерируем команды цикла
                 processed_lines.extend([
                     f"# Начало цикла FOR<<{iterations}",
                     f"INT i 0",
                     f"INT max {iterations}",
-                    f"# Метка начала цикла",
                     f"#FOR-START",
                 ])
-
+                
                 # Тело цикла
                 processed_lines.extend(loop_block)
-
+                
                 # Инкремент и прыжок назад
                 processed_lines.extend([
                     f"ADD i 1",
                     f"JUMP_IF not @i == @max >{loop_start}",
                     f"# Конец цикла FOR"
                 ])
-
+                
                 i += 1  # Пропускаем ENDFOR
-
             else:
                 processed_lines.append(line)
                 i += 1
-
+        
         return processed_lines
-
+    
+    def _process_def(self, lines):
+        """Обработка DEF (определение функций)"""
+        processed_lines = []
+        functions = {}
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            if line.startswith("DEF<<"):
+                def_name = line[5:].strip()
+                action_block = []
+                i += 1
+                while i < len(lines) and lines[i] != "ENDDEF":
+                    action_block.append(lines[i])
+                    i += 1
+                
+                # Сохраняем функцию
+                functions[def_name] = action_block
+                # В основном коде заменяем на комментарий
+                processed_lines.append(f"# Функция {def_name} определена")
+                
+                i += 1  # Пропускаем ENDDEF
+            else:
+                processed_lines.append(line)
+                i += 1
+        
+        return processed_lines, functions
+    
+    def _process_call(self, lines, functions):
+        """Обработка CALL (вызов функций)"""
+        processed_lines = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            if line.startswith("CALL<<"):
+                def_name = line[6:].strip()
+                if def_name in functions:
+                    # Вставляем тело функции
+                    processed_lines.append(f"# Начало функции {def_name}")
+                    processed_lines.extend(functions[def_name])
+                    processed_lines.append(f"# Конец функции {def_name}")
+                else:
+                    processed_lines.append(f"# Ошибка: функция {def_name} не найдена")
+                i += 1
+            else:
+                processed_lines.append(line)
+                i += 1
+        
+        return processed_lines
+    
     def save_compiled(self, output_filename):
         """Сохраняет скомпилированный код в файл"""
         with open(output_filename, "w", encoding="utf-8") as f:
             for line in self.compiled_code:
                 f.write(line + "\n")
         print(f"Скомпилированный код сохранен в: {output_filename}")
-
+    
     def print_compiled(self):
         """Выводит скомпилированный код"""
         print("\n" + "=" * 50)
@@ -118,8 +203,10 @@ class basic:
         self.opened_file = open(filename,"r",encoding="utf-8")
         self.code = self.opened_file.read()
         self.lines_code = self.code.split("\n")
-        compiler_ = Compiler(self.lines_code)
-        self.lines_code = compiler_.compile()
+        self.compiler_ = Compiler(self.lines_code)
+        self.lines_code = self.compiler_.compile()
+
+        print(self.lines_code)
 
         self.functions  = {}
 
@@ -149,6 +236,10 @@ class basic:
         #print("Программа успешно выполнена, код 0")
         #print("Для возврата нажмите Enter")
         #input()
+        print(f"""
+Memory info:
+      vars: {sys.getsizeof(self.variables)} bytes
+""")
         exit(0)
 
     def get_bool(self,expression:str):
@@ -307,5 +398,6 @@ class basic:
 
 
 lang = basic(filename)
+
 
 
