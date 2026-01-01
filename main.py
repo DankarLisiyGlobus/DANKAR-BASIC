@@ -9,7 +9,11 @@ words = ["PRINT","INT","STR","LIST","LET","PRINTVAR","CLEAR","INPUT","END","LINE
 
 filename = sys.argv[1]
 
-
+def dict_size(dict_:dict)->int:
+    size = sys.getsizeof(dict_)
+    for key in dict_.keys():
+        size += sys.getsizeof(dict[key])
+    return size
 
 class Compiler:
     def __init__(self, code:list):
@@ -26,23 +30,23 @@ class Compiler:
             if clean_line and not clean_line.startswith("#") and not clean_line.isspace():
                 clean_lines.append(clean_line)
         
-        print(f"Очищенные строки: {clean_lines}")
+        #print(f"Очищенные строки: {clean_lines}")
         
         # Этап 1: Обработка IF
         processed_lines = self._process_if(clean_lines)
-        print(f"После IF: {processed_lines}")
+        #print(f"После IF: {processed_lines}")
         
         # Этап 2: Обработка FOR
         processed_lines_for = self._process_for(processed_lines)
-        print(f"После FOR: {processed_lines_for}")
+        #print(f"После FOR: {processed_lines_for}")
         
         # Этап 3: Обработка DEF
         processed_lines_def, functions = self._process_def(processed_lines_for)
-        print(f"После DEF: {processed_lines_def}")
+        #print(f"После DEF: {processed_lines_def}")
         
         # Этап 4: Обработка CALL
         processed_lines_call = self._process_call(processed_lines_def, functions)
-        print(f"После CALL: {processed_lines_call}")
+        #print(f"После CALL: {processed_lines_call}")
         
         self.compiled_code = processed_lines_call
         return self.compiled_code
@@ -238,7 +242,7 @@ class basic:
         #input()
         print(f"""
 Memory info:
-      vars: {sys.getsizeof(self.variables)} bytes
+      vars: {dict_size(self.variables)} bytes
 """)
         exit(0)
 
@@ -398,6 +402,3 @@ Memory info:
 
 
 lang = basic(filename)
-
-
-
