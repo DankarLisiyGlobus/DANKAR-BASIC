@@ -3,8 +3,9 @@
 import os
 import re
 import sys
+import time
 
-words = ["PRINT","INT","STR","LIST","LET","PRINTVAR","CLEAR","INPUT","END","LINES","TYPE","COMMAND","OPEN","READ","WRITE","CLOSE","ADD","SUB","DIV","MULT","JUMP","JUMPIF"]
+words = ["PRINT","INT","STR","LIST","LET","CLEAR","INPUT","END","LINES","TYPE","COMMAND","OPEN","READ","WRITE","CLOSE","ADD","SUB","DIV","MULT","JUMP","JUMPIF"]
 
 
 filename = sys.argv[1]
@@ -210,7 +211,7 @@ class basic:
         self.compiler_ = Compiler(self.lines_code)
         self.lines_code = self.compiler_.compile()
 
-        print(self.lines_code)
+        #print(self.lines_code)
 
         self.functions  = {}
 
@@ -224,7 +225,7 @@ class basic:
         try:
             while self.run:
                 self.jumping = False
-                if self.current_line+1 == len(self.lines_code):
+                if self.current_line == len(self.lines_code):
                     self.run = False
                     break
                 line = self.lines_code[self.current_line]
@@ -274,21 +275,9 @@ Memory info:
             elif var[0] == "@":
                 return "var"
             else:
-                return None
+                return None,None
         else:
-            return None
-    def init_list(self,name,data:list):
-        for i, element in enumerate(data):
-            type = self.get_type(element)
-            if type == str:
-                text = element[1::]
-                text = text[:-1]
-                data[i] = str(text)
-                continue
-            elif type == int:
-                data[i] = int(element)
-                continue
-        self.variables[name] = data
+            return None,None
     def get_value(self,expression:str):
         if expression != "":
             if expression[0] == "'" and expression[-1] == "'":
@@ -306,7 +295,7 @@ Memory info:
             else:
                 return None,None
         else:
-            return None
+            return None,None
     def execute(self,line:str,ii:int):
         #print(line)
         word = line.split(" ")[0]
@@ -329,31 +318,14 @@ Memory info:
             self.variables[args[0]] = int(args[1])
         elif word == "STR":
             self.variables[args[0]] = str(args[1])
-        elif word == "LIST":
-            data = args[1::]
-            self.init_list(args[0],data)
         elif word == "LET":
-            var = ""
+            value = ""
             arg2 = args[1::]
             for i,part in enumerate(arg2):
-                var += part
+                value += part
                 if i+1 != len(arg2):
-                    var += " "
-            typee = self.get_type(var)
-            if typee == str:
-                text = var[1::]
-                text = text[:-1]
-                self.variables[args[0]] = str(text)
-            elif typee == int:
-                var = var[1::]
-                self.variables[args[0]] = int(var)
-            elif typee == list:
-                data = var[1::]
-                data = data[:-1]
-                data = data.split(",")
-                self.init_list(args[0],data)
-            elif typee == None:
-                self.variables[args[0]] = None
+                    value += " "          #Мы тут достаем все что после LET <имя переменной>
+            self.variables[args[0]] = self.get_value(value)[1]
         elif word == "CLEAR":
             os.system("clear")
         elif word == "INPUT":
@@ -365,7 +337,7 @@ Memory info:
             self.variables[args[0]] = self.variables["LINES"]
         elif word == "TYPE":
             self.variables[args[1]] = str(type(self.variables[args[0]]))
-        elif word == "COMMAND":
+        elif word == "SYSTEM":
             os.system(text)
         elif word == "OPEN":
             self.opened_file = open(args[0],args[1],encoding=args[2])
